@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.venv/
+reports/
+report.html
+portal.json
+submissions/*/
+.env
