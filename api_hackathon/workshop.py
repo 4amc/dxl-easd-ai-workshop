@@ -17,7 +17,16 @@ The AI assistant (ai.ask(...)) always returns a list of dicts. The shapes are
 shown in the comments below. Your job is to filter that list so only items
 that are verifiable against real evidence survive.
 """
-
+def decode_json_pointer(pointer: str, spec: dict):
+    parts = pointer.split("/")[1:]  # skip leading empty string
+    parts = [p.replace("~1", "/") for p in parts]  # decode ~1 to /
+    
+    current = spec
+    for part in parts:
+        if part not in current:
+            return None  # pointer doesn't resolve
+        current = current[part]
+    return current
 
 def review_contract(spec: dict, ai) -> list[dict]:
     """Level 1 -- return only findings supported by the OpenAPI contract.
@@ -51,7 +60,25 @@ def review_contract(spec: dict, ai) -> list[dict]:
          "/paths/~1orders/get" is spec["paths"]["/orders"]["get"].
          It is not "//orders" -- the slash belongs to the key name "/orders".
     """
-    return ai.ask("contract_review", spec)
+
+    verified = []
+    summary = ai.ask("contract_review", spec)
+
+    for findings in summary:
+        evidence = findings["evidence_pointer"]
+        results = decode_json_pointer(evidence, spec)
+        if results is not None:
+            verified.append(findings)
+
+    for findings in verified:
+        path = findings["path"]
+        method = findings["method"]
+        if path not in spec["paths"] or method not in spec["paths"][path]:
+            verified.remove(findings)
+        
+    return verified
+
+
 
 
 def design_negative_tests(spec: dict, ai) -> list[dict]:
