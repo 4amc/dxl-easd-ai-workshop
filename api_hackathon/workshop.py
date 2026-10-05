@@ -113,8 +113,20 @@ def design_negative_tests(spec: dict, ai) -> list[dict]:
       3. The case has all required fields: name, method, path, input,
          expected_status.
     """
-    return ai.ask("negative_tests", spec)
+    verified = []
+    summary = ai.ask("negative_tests", spec)
+    for negative_test in summary:
+        path = negative_test.get("path")
+        method = negative_test.get("method")
+        expected_status = negative_test.get("expected_status")
 
+        if path in spec["paths"] and method in spec["paths"][path]:
+            error_codes = spec["paths"][path][method].get("responses", {}).keys()  # Ensure responses exist for the path and method
+            if str(expected_status) not in error_codes:
+                continue
+            else:
+                verified.append(negative_test)
+    return verified
 
 def diagnose_incident(logs: str, ai) -> dict:
     """Level 3 -- select a diagnosis whose evidence appears in the logs.
